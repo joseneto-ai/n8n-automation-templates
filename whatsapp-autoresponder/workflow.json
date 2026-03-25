@@ -1,0 +1,86 @@
+{
+  "_meta": {
+    "template": "WhatsApp Autoresponder",
+    "version": "1.1.0",
+    "author": "José Neto @zNeto.AI",
+    "note": "Replace all [PLACEHOLDER] values before activating."
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "description": "Receives incoming WhatsApp messages via Meta webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "[WEBHOOK_PATH]"
+      }
+    },
+    {
+      "id": "node_002",
+      "name": "Message Parser",
+      "type": "n8n-nodes-base.function",
+      "description": "Extracts sender ID, message text, and timestamp from WhatsApp payload",
+      "parameters": {
+        "functionCode": "// Parse WhatsApp Business API payload\n// [SANITIZED]"
+      }
+    },
+    {
+      "id": "node_003",
+      "name": "Context Manager — Load",
+      "type": "n8n-nodes-base.function",
+      "description": "Retrieves conversation history for the sender. Returns empty array if first contact.",
+      "parameters": {
+        "functionCode": "// Load context from store keyed by sender ID\n// [SANITIZED]"
+      }
+    },
+    {
+      "id": "node_004",
+      "name": "OpenAI — Response Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Generates context-aware reply using GPT-4o and full conversation history",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+          "Authorization": "Bearer [OPENAI_API_KEY]"
+        },
+        "body": {
+          "model": "gpt-4o",
+          "messages": "[SYSTEM_PROMPT + CONVERSATION_HISTORY + CURRENT_MESSAGE]",
+          "temperature": 0.5,
+          "max_tokens": 300
+        }
+      }
+    },
+    {
+      "id": "node_005",
+      "name": "WhatsApp — Send Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Delivers the AI-generated response to the customer via WhatsApp Business API",
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/[PHONE_NUMBER_ID]/messages",
+        "headers": {
+          "Authorization": "Bearer [META_ACCESS_TOKEN]"
+        }
+      }
+    },
+    {
+      "id": "node_006",
+      "name": "Context Manager — Save",
+      "type": "n8n-nodes-base.function",
+      "description": "Appends current exchange to conversation history and persists to store",
+      "parameters": {
+        "functionCode": "// Save updated context keyed by sender ID\n// [SANITIZED]"
+      }
+    }
+  ],
+  "connections": {
+    "node_001": { "next": "node_002" },
+    "node_002": { "next": "node_003" },
+    "node_003": { "next": "node_004" },
+    "node_004": { "next": "node_005" },
+    "node_005": { "next": "node_006" }
+  }
+}
