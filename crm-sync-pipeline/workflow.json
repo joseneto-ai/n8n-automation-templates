@@ -1,0 +1,113 @@
+{
+  "_meta": {
+    "template": "CRM Sync Pipeline",
+    "version": "1.0.0",
+    "author": "José Neto @zNeto.AI",
+    "note": "Replace all [PLACEHOLDER] values before activating."
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "name": "Webhook — Event Intake",
+      "type": "n8n-nodes-base.webhook",
+      "description": "Receives customer interaction events from any source",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "[WEBHOOK_PATH]"
+      }
+    },
+    {
+      "id": "node_002",
+      "name": "Data Normalizer",
+      "type": "n8n-nodes-base.function",
+      "description": "Standardizes payload structure regardless of source channel",
+      "parameters": {
+        "functionCode": "// Normalize to standard schema: id, name, message, source, timestamp\n// [SANITIZED]"
+      }
+    },
+    {
+      "id": "node_003",
+      "name": "Lead Enrichment",
+      "type": "n8n-nodes-base.function",
+      "description": "Adds derived data: interaction count, channel history, priority tag",
+      "parameters": {
+        "functionCode": "// Enrich lead data with derived fields\n// [SANITIZED]"
+      }
+    },
+    {
+      "id": "node_004",
+      "name": "CRM Duplicate Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Queries CRM for existing record matching the contact identifier",
+      "parameters": {
+        "method": "GET",
+        "url": "[CRM_API_URL]/contacts?identifier=[CONTACT_ID]",
+        "headers": {
+          "Authorization": "Bearer [CRM_API_KEY]"
+        }
+      }
+    },
+    {
+      "id": "node_005",
+      "name": "Exists Router",
+      "type": "n8n-nodes-base.switch",
+      "description": "Routes to Create or Update based on duplicate check result",
+      "parameters": {
+        "rules": [
+          { "value": "false", "output": 0 },
+          { "value": "true", "output": 1 }
+        ]
+      }
+    },
+    {
+      "id": "node_006",
+      "name": "CRM — Create Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Creates a new contact record in the CRM with full lead data",
+      "parameters": {
+        "method": "POST",
+        "url": "[CRM_CREATE_ENDPOINT]",
+        "headers": {
+          "Authorization": "Bearer [CRM_API_KEY]"
+        }
+      }
+    },
+    {
+      "id": "node_007",
+      "name": "CRM — Update Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Updates existing contact with latest interaction data and score",
+      "parameters": {
+        "method": "PATCH",
+        "url": "[CRM_UPDATE_ENDPOINT]",
+        "headers": {
+          "Authorization": "Bearer [CRM_API_KEY]"
+        }
+      }
+    },
+    {
+      "id": "node_008",
+      "name": "Confirmation Logger",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Logs sync result with timestamp for audit trail",
+      "parameters": {
+        "method": "POST",
+        "url": "[LOG_WEBHOOK]"
+      }
+    }
+  ],
+  "connections": {
+    "node_001": { "next": "node_002" },
+    "node_002": { "next": "node_003" },
+    "node_003": { "next": "node_004" },
+    "node_004": { "next": "node_005" },
+    "node_005": {
+      "outputs": {
+        "0": "node_006",
+        "1": "node_007"
+      }
+    },
+    "node_006": { "next": "node_008" },
+    "node_007": { "next": "node_008" }
+  }
+}
