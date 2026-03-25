@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "template": "Lead Qualification Agent",
+    "version": "1.0.0",
+    "author": "José Neto @zNeto.AI",
+    "note": "Replace all [PLACEHOLDER] values before activating."
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "name": "Webhook — Lead Intake",
+      "type": "n8n-nodes-base.webhook",
+      "description": "Receives incoming lead data from web forms or landing pages",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "[WEBHOOK_PATH]"
+      }
+    },
+    {
+      "id": "node_002",
+      "name": "Data Extractor",
+      "type": "n8n-nodes-base.function",
+      "description": "Extracts name, message, source, and timestamp from payload",
+      "parameters": {
+        "functionCode": "// Extract and structure lead data\n// [SANITIZED]"
+      }
+    },
+    {
+      "id": "node_003",
+      "name": "OpenAI — Intent Classifier",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Classifies lead intent as HOT, WARM, or COLD using GPT-4o",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+          "Authorization": "Bearer [OPENAI_API_KEY]"
+        },
+        "body": {
+          "model": "gpt-4o",
+          "messages": "[CLASSIFICATION_PROMPT + LEAD_MESSAGE]",
+          "temperature": 0.2,
+          "max_tokens": 100
+        }
+      }
+    },
+    {
+      "id": "node_004",
+      "name": "Intent Router",
+      "type": "n8n-nodes-base.switch",
+      "description": "Routes workflow based on HOT / WARM / COLD classification",
+      "parameters": {
+        "rules": [
+          { "value": "HOT", "output": 0 },
+          { "value": "WARM", "output": 1 },
+          { "value": "COLD", "output": 2 }
+        ]
+      }
+    },
+    {
+      "id": "node_005",
+      "name": "HOT — Sales Team Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Sends immediate notification to sales team with full lead context",
+      "parameters": {
+        "method": "POST",
+        "url": "[SALES_ALERT_WEBHOOK]"
+      }
+    },
+    {
+      "id": "node_006",
+      "name": "WARM — Nurture Sequence",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Enrolls lead in automated nurture flow",
+      "parameters": {
+        "method": "POST",
+        "url": "[NURTURE_WEBHOOK]"
+      }
+    },
+    {
+      "id": "node_007",
+      "name": "COLD — Low Priority Log",
+      "type": "n8n-nodes-base.function",
+      "description": "Prepares cold lead data for CRM logging with low-priority tag",
+      "parameters": {
+        "functionCode": "// Tag as cold and prepare CRM payload\n// [SANITIZED]"
+      }
+    },
+    {
+      "id": "node_008",
+      "name": "CRM Logger",
+      "type": "n8n-nodes-base.httpRequest",
+      "description": "Logs all leads to CRM with score, source, and timestamp",
+      "parameters": {
+        "method": "POST",
+        "url": "[CRM_WEBHOOK_URL]"
+      }
+    }
+  ],
+  "connections": {
+    "node_001": { "next": "node_002" },
+    "node_002": { "next": "node_003" },
+    "node_003": { "next": "node_004" },
+    "node_004": {
+      "outputs": {
+        "0": "node_005",
+        "1": "node_006",
+        "2": "node_007"
+      }
+    },
+    "node_005": { "next": "node_008" },
+    "node_006": { "next": "node_008" },
+    "node_007": { "next": "node_008" }
+  }
+}
